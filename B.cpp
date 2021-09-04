@@ -1,7 +1,6 @@
 //solution was derived from the psuedo code provided by http://www.cs.umd.edu/~hollings/cs412/s96/synch/smokers.html
 
 #include <time.h>
-#include <semaphore.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <iostream>
@@ -9,23 +8,39 @@
 #define SMOKERNUM 3
 #define EMPTY 0
 
-int smokers = 0;
-int table = 0;
+int smokers,table = 0;
+bool isFair = true;
+int tableComb[3] = {1,2,3};
+int usedTabled[3] {0};
 pthread_mutex_t tableMutex, newTurnMutex;
-pthread_cond_t fullTableCond;
-pthread_cond_t emptyTableCond;
-pthread_cond_t smokeCond;
-pthread_cond_t newTurnCond;
-
+pthread_cond_t fullTableCond, emptyTableCond, smokeCond, newTurnCond;
 
 void* agent(void* arg)
 {
     for(int i = 0; i < 3; i++){
+        if(usedTabled[0] != 0 && usedTabled[1] != 0 && usedTabled[2] != 0){
+        for(int i = 0; i < SMOKERNUM;i++){
+        usedTabled[i] = 0;
+    }
+    }
         pthread_mutex_lock(&tableMutex);
         if(table == EMPTY)
         {
-            //Fills table and waits for empty signal
             table = rand()%3 + 1;
+            if(usedTabled[table - 1] == 0){
+                usedTabled[table - 1] = table;                
+            }else{
+                isFair = false;
+                while(isFair == false){
+                    table = rand()%3 + 1;
+                    if(usedTabled[table - 1] == 0){
+                        usedTabled[table - 1] = table;
+                        isFair = true;
+                    }
+
+                }
+                isFair = true;
+            }
             switch(table){
                 case 1:
                     std::cout << "Tobacco and Matches placed by agent" << std::endl; //Paper
@@ -51,7 +66,7 @@ void smoking(int smokerid){
         pthread_cond_wait(&fullTableCond, &tableMutex);
     }
     smokers++;
-    printf("Smoker %d: checks table", smokerid);
+    printf("Smoker %d: checks table\n", smokerid);
 
     if(table == smokerid){
         if(smokers < 3){
@@ -60,27 +75,72 @@ void smoking(int smokerid){
         smokers = 0;
         table = EMPTY;
         pthread_cond_signal(&emptyTableCond);
-        printf("smoker: %d, is smoking", smokerid);
-        //pthread_cond_broadcast
-
+        printf("smoker %d: is smoking\n", smokerid);
+        pthread_cond_broadcast(&newTurnCond);
+        sleep(2);
+    } else{
+        if(smokers == 3){
+            pthread_cond_signal(&smokeCond);
+        }
+        pthread_cond_wait(&newTurnCond, &newTurnMutex);
     }
 
-void smoker(void* smoker){
-// do forever {
-//       P( smoker_tobacco );  // Sleep right away
-//       P( lock );
-//       Pick up match
-//       Pick up paper
-//        V( agent );
-//        V( lock );
-//        Smoke (but don't inhale)
-//     }
-return NULL;
 }
 
-int main(){
-     pthread_t agent, smokers[SMOKERNUM];
+void* smoker(void* smoker){
+    int ingredient = *((int *)smoker);
+    for(int i = 0; i < 3; i++){
+        pthread_mutex_lock(&newTurnMutex);
+        smoking(ingredient);
+        pthread_mutex_unlock(&newTurnMutex);
+        }
+    std::cout << "Smoker leaving" << std::endl;
+    return NULL;
+}
 
-return 0;
+
+int main(){
+    pthread_t agentP, smokers[SMOKERNUM];
+    pthread_cond_init(&fullTableCond, NULL);
+    pthread_cond_init(&emptyTableCond, NULL);
+    pthread_cond_init(&smokeCond, NULL);
+    pthread_cond_init(&newTurnCond, NULL);
+    pthread_mutex_init(&tableMutex, NULL);
+    pthread_mutex_init(&newTurnMutex, NULL);
+
+
+    int label[3] = {1,2,3};
+    
+    //Creates threads and assigns them to function
+    pthread_create(&agentP, NULL, &agent, NULL);
+    for (int i = 0; i < 3; i++)
+    {
+        if (pthread_create(&smokers[i], NULL, &smoker, (void *)&label[i]) != 0)
+        {
+            std::cerr << "failed to create Smoker " << i << std::endl;
+        }
+    }
+
+    //Waits for threads to finish and kills them
+    for (int i = 0; i < 3; i++)
+    {
+        if (pthread_join(smokers[i], NULL) != 0)
+        {
+            std::cerr << "failed to join Smoker " << i << std::endl;
+        }
+    }
+    if(pthread_join(agentP, NULL) != 0){
+        std::cerr << "failed to join Agent " << std::endl;
+    }
+
+    pthread_cond_destroy(&fullTableCond);
+    pthread_cond_destroy(&emptyTableCond);
+    pthread_cond_destroy(&smokeCond);
+    pthread_cond_destroy(&newTurnCond);
+    pthread_mutex_destroy(&tableMutex);
+    pthread_mutex_destroy(&newTurnMutex);
+
+
+    return 0;
 }
 
