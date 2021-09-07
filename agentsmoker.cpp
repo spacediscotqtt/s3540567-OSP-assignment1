@@ -7,17 +7,19 @@
 
 #define SMOKERNUM 3
 #define EMPTY 0
+#define ROUNDS 10
 
 int smokers,table = 0;
 bool isFair = true;
-int tableComb[3] = {1,2,3};
 int usedTabled[3] {0};
 pthread_mutex_t tableMutex, newTurnMutex;
 pthread_cond_t fullTableCond, emptyTableCond, smokeCond, newTurnCond;
 
+//method that handles the logic of the agent
 void* agent(void* arg)
 {
-    for(int i = 0; i < 3; i++){
+    //resets table if all smokers have smoked atleast once
+    for(int i = 0; i < ROUNDS; i++){
         if(usedTabled[0] != 0 && usedTabled[1] != 0 && usedTabled[2] != 0){
         for(int i = 0; i < SMOKERNUM;i++){
         usedTabled[i] = 0;
@@ -26,7 +28,9 @@ void* agent(void* arg)
         pthread_mutex_lock(&tableMutex);
         if(table == EMPTY)
         {
+            //random table combination made
             table = rand()%3 + 1;
+            //if table has already been used before, reroll table to "make it fair"
             if(usedTabled[table - 1] == 0){
                 usedTabled[table - 1] = table;                
             }else{
@@ -41,6 +45,7 @@ void* agent(void* arg)
                 }
                 isFair = true;
             }
+            //dictates whats on the table 
             switch(table){
                 case 1:
                     std::cout << "Tobacco and Matches placed by agent" << std::endl; //Paper
@@ -60,13 +65,15 @@ void* agent(void* arg)
     return NULL;
 }
 
+//logic to indicate whether a smoker should be smoking
 void smoking(int smokerid){
 
+    //waits until table is filled
     if(table == EMPTY){
         pthread_cond_wait(&fullTableCond, &tableMutex);
     }
     smokers++;
-    printf("Smoker %d: checks table\n", smokerid);
+    std::cout << "Smoker " << smokerid << ": checks table" << std::endl; 
 
     if(table == smokerid){
         if(smokers < 3){
@@ -75,9 +82,9 @@ void smoking(int smokerid){
         smokers = 0;
         table = EMPTY;
         pthread_cond_signal(&emptyTableCond);
-        printf("smoker %d: is smoking\n", smokerid);
+        std::cout << "Smoker " << smokerid << " is smoking" << std::endl; 
         pthread_cond_broadcast(&newTurnCond);
-        sleep(2);
+        sleep(1);
     } else{
         if(smokers == 3){
             pthread_cond_signal(&smokeCond);
@@ -87,9 +94,10 @@ void smoking(int smokerid){
 
 }
 
+//logic that handles the smoker
 void* smoker(void* smoker){
     int ingredient = *((int *)smoker);
-    for(int i = 0; i < 3; i++){
+    for(int i = 0; i < ROUNDS; i++){
         pthread_mutex_lock(&newTurnMutex);
         smoking(ingredient);
         pthread_mutex_unlock(&newTurnMutex);
@@ -111,7 +119,7 @@ int main(){
 
     int label[3] = {1,2,3};
     
-    //Creates threads and assigns them to function
+    //creates threads and then gives them a function
     pthread_create(&agentP, NULL, &agent, NULL);
     for (int i = 0; i < 3; i++)
     {
