@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <iostream>
+#include <string>
 
 #define SMOKERNUM 3
 #define EMPTY 0
@@ -12,6 +13,7 @@
 int smokers,table = 0;
 bool isFair = true;
 int usedTabled[3] {0};
+std::string ingrediant;
 pthread_mutex_t tableMutex, newTurnMutex;
 pthread_cond_t fullTableCond, emptyTableCond, smokeCond, newTurnCond;
 
@@ -24,8 +26,10 @@ void* agent(void* arg)
         for(int i = 0; i < SMOKERNUM;i++){
         usedTabled[i] = 0;
     }
+    std::cout << "all smokers have smoked" <<std::endl;
     }
         pthread_mutex_lock(&tableMutex);
+        std::cout << "table opened" <<std::endl;
         if(table == EMPTY)
         {
             //random table combination made
@@ -58,11 +62,28 @@ void* agent(void* arg)
                     break;
         }
             pthread_cond_signal(&fullTableCond);
+            std::cout << "table checks if filled" << std::endl;
             pthread_cond_wait(&emptyTableCond, &tableMutex);
+            std::cout << "table checks if emptied" << std::endl;
         }
         pthread_mutex_unlock(&tableMutex);
     }
     return NULL;
+}
+
+std::string smokerIngrediant(int smoker){
+    switch(smoker){
+        case 1:
+           ingrediant = "paper";
+           break;
+        case 2:
+           ingrediant = "tobacco";
+           break;
+        case 3:
+           ingrediant = "matches";
+           break;
+    }
+    return ingrediant;
 }
 
 //logic to indicate whether a smoker should be smoking
@@ -78,16 +99,19 @@ void smoking(int smokerid){
     if(table == smokerid){
         if(smokers < 3){
             pthread_cond_wait(&smokeCond, &newTurnMutex);
+            std::cout << "smoker " << smokerid << " grabs the ingrediants" << std::endl;
         }
         smokers = 0;
         table = EMPTY;
+        std::cout << "Smoker " << smokerid << " is smoking using: " << smokerIngrediant(smokerid) <<std::endl; 
         pthread_cond_signal(&emptyTableCond);
-        std::cout << "Smoker " << smokerid << " is smoking" << std::endl; 
-        pthread_cond_broadcast(&newTurnCond);
+        pthread_cond_broadcast(&newTurnCond); 
         sleep(1);
+        std::cout << "agent indicates the beginning of a new round" << std::endl;
     } else{
         if(smokers == 3){
             pthread_cond_signal(&smokeCond);
+            std::cout << "all smokers have checked" << std::endl;
         }
         pthread_cond_wait(&newTurnCond, &newTurnMutex);
     }
@@ -101,8 +125,8 @@ void* smoker(void* smoker){
         pthread_mutex_lock(&newTurnMutex);
         smoking(ingredient);
         pthread_mutex_unlock(&newTurnMutex);
+        //std::cout << "smoker thread unlocking" << std::endl;
         }
-    std::cout << "Smoker leaving" << std::endl;
     return NULL;
 }
 
@@ -136,10 +160,12 @@ int main(){
         {
             std::cerr << "failed to join Smoker " << i << std::endl;
         }
+        std::cout << "Smoker exit" << std::endl;
     }
     if(pthread_join(agentP, NULL) != 0){
         std::cerr << "failed to join Agent " << std::endl;
     }
+    std::cout << "agent exit" << std::endl;
 
     pthread_cond_destroy(&fullTableCond);
     pthread_cond_destroy(&emptyTableCond);
@@ -149,6 +175,6 @@ int main(){
     pthread_mutex_destroy(&newTurnMutex);
 
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
