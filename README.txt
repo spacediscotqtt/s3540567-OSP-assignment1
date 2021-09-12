@@ -1,4 +1,6 @@
-to compile the files:
+simulationE requires c++17, thus scl enable devtoolset-9 bash is required to compile
+
+to compile all the files:
 make all
 
 to compile the files individually:
