@@ -99,7 +99,6 @@ void smoking(int smokerid){
     if(table == smokerid){
         if(smokers < 3){
             pthread_cond_wait(&smokeCond, &newTurnMutex);
-            std::cout << "smoker " << smokerid << " grabs the ingrediants" << std::endl;
         }
         smokers = 0;
         table = EMPTY;
@@ -107,11 +106,10 @@ void smoking(int smokerid){
         pthread_cond_signal(&emptyTableCond);
         pthread_cond_broadcast(&newTurnCond); 
         sleep(1);
-        std::cout << "agent indicates the beginning of a new round" << std::endl;
+        std::cout << "agent indicates the ending of the round" << std::endl;
     } else{
         if(smokers == 3){
             pthread_cond_signal(&smokeCond);
-            std::cout << "all smokers have checked" << std::endl;
         }
         pthread_cond_wait(&newTurnCond, &newTurnMutex);
     }

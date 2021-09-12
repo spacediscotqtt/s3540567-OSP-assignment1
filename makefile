@@ -1,14 +1,14 @@
 .default: all
 
 all: 
+	g++ -Wall -Werror -pedantic -std=c++11 -g -O -o simulationA -pthread producerconsumer.cpp &
+	g++ -Wall -Werror -pedantic -std=c++11 -g -O -o simulationE -pthread agentsmoker.cpp
 
 clean:
-	rm -rf A E *.o *.dSYM
+	rm -rf simulationA simulationE *.o *.dSYM
 
-A: producerconsumer.cpp
+simulationA: producerconsumer.cpp
 	g++ -Wall -Werror -pedantic -std=c++11 -g -O -o $@ -pthread $^
 
-E: agentsmoker.cpp
+simulationE: agentsmoker.cpp
 	g++ -Wall -Werror -pedantic -std=c++11 -g -O -o $@ -pthread $^
-
-
